@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Prompt user for MySQL username
+read -p "Enter MySQL username: " username
+
+# Prompt user for MySQL password
+read -s -p "Enter MySQL password: " password
+echo # Print a new line for better formatting
+
+# MySQL query to fetch all MySQL users
+mysql_users=$(mysql -u"$username" -p"$password" -e "SELECT user FROM mysql.user WHERE user != 'root';" 2>/dev/null)
+
+# Check if MySQL query was successful
+if [ $? -eq 0 ]; then
+    # Loop through each user and generate a new password
+    while IFS= read -r user; do
+        new_password=$(openssl rand -base64 12)
+        # Change password for the user
+        mysql -u"$username" -p"$password" -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$new_password';" 2>/dev/null
+        echo "User: $user, New Password: $new_password" >> mysql_passwords.txt
+    done <<< "$mysql_users"
+    echo "Passwords changed successfully. Details exported to mysql_passwords.txt"
+else
+    echo "Failed to fetch MySQL users. Please check your credentials."
+fi
