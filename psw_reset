@@ -15,11 +15,14 @@ if [ $? -eq 0 ]; then
     # Loop through each user and generate a new password
     while IFS= read -r user; do
         new_password=$(openssl rand -base64 12)
+        # Generate bcrypt hash for the new password
+        bcrypt_hash=$(php -r "echo password_hash('$new_password', PASSWORD_BCRYPT);")
         # Change password for the user
-        mysql -u"$username" -p"$password" -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$new_password';" 2>/dev/null
-        echo "User: $user, New Password: $new_password" >> mysql_passwords.txt
+        mysql -u"$username" -p"$password" -e "ALTER USER '$user'@'localhost' IDENTIFIED WITH mysql_native_password BY '$new_password';" 2>/dev/null
+        # Store the new password hash in a file
+        echo "User: $user, New Password: $new_password, Bcrypt Hash: $bcrypt_hash" >> mysql_passwords.txt
     done <<< "$mysql_users"
-    echo "Passwords changed successfully. Details exported to mysql_passwords.txt"
+    echo "Passwords reset successfully. Details exported to mysql_passwords.txt"
 else
     echo "Failed to fetch MySQL users. Please check your credentials."
 fi
