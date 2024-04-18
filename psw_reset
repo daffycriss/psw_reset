@@ -39,7 +39,7 @@ if [ $? -eq 0 ]; then
     # Loop through each user from the file
     while IFS= read -r user; do
         # Check if the user exists in the MySQL database
-        if grep -q "^$user$" <<< "$mysql_data"; then
+        if grep -q "^$user" <<< "$mysql_data"; then
             new_password=$(openssl rand -base64 12)
             # Generate bcrypt hash for the new password
             bcrypt_hash=$(php -r "echo password_hash('$new_password', PASSWORD_BCRYPT);")
