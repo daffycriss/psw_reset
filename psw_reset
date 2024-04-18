@@ -10,6 +10,15 @@ echo # Print a new line for better formatting
 # Prompt user for the database to be used
 read -p "Enter the name of the database: " database
 
+# Prompt user for the table name containing user details
+read -p "Enter the name of the table containing user details: " table_name
+
+# Prompt user for the name of the column containing usernames
+read -p "Enter the name of the column containing usernames: " username_column
+
+# Prompt user for the name of the column containing passwords
+read -p "Enter the name of the column containing passwords: " password_column
+
 # Prompt user for the path to the file containing usernames
 read -p "Enter the path to the file containing usernames (one per line): " username_file
 
@@ -22,27 +31,27 @@ fi
 # Read usernames from the file
 usernames=$(<"$username_file")
 
-# MySQL query to fetch all MySQL users
-mysql_users=$(mysql -u"$username" -p"$password" -e "SELECT user FROM mysql.user WHERE user != 'root';" 2>/dev/null)
+# MySQL query to fetch all usernames and passwords
+mysql_data=$(mysql -u"$username" -p"$password" -e "SELECT $username_column, $password_column FROM $database.$table_name;" 2>/dev/null)
 
 # Check if MySQL query was successful
 if [ $? -eq 0 ]; then
     # Loop through each user from the file
     while IFS= read -r user; do
         # Check if the user exists in the MySQL database
-        if grep -q "^$user$" <<< "$mysql_users"; then
+        if grep -q "^$user$" <<< "$mysql_data"; then
             new_password=$(openssl rand -base64 12)
             # Generate bcrypt hash for the new password
             bcrypt_hash=$(php -r "echo password_hash('$new_password', PASSWORD_BCRYPT);")
             # Change password for the user
-            mysql -u"$username" -p"$password" -e "USE $database; ALTER USER '$user'@'localhost' IDENTIFIED WITH mysql_native_password BY '$new_password';" 2>/dev/null
+            mysql -u"$username" -p"$password" -e "USE $database; UPDATE $table_name SET $password_column = '$bcrypt_hash' WHERE $username_column = '$user';" 2>/dev/null
             # Store the new password hash in a file
             echo "User: $user, New Password: $new_password, Bcrypt Hash: $bcrypt_hash" >> mysql_passwords.txt
         else
-            echo "User '$user' does not exist in MySQL database. Skipping."
+            echo "User '$user' does not exist in the MySQL database. Skipping."
         fi
     done <<< "$usernames"
     echo "Passwords reset successfully. Details exported to mysql_passwords.txt"
 else
-    echo "Failed to fetch MySQL users. Please check your credentials."
+    echo "Failed to fetch data from MySQL database. Please check your credentials, database, table, and column names."
 fi
