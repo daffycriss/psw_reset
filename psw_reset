@@ -19,6 +19,9 @@ read -p "Enter the name of the column containing usernames: " username_column
 # Prompt user for the name of the column containing passwords
 read -p "Enter the name of the column containing passwords: " password_column
 
+# Delete the previously created password file
+rm -f mysql_passwords.txt
+
 # MySQL query to fetch all usernames and passwords
 mysql_data=$(mysql -u"$username" -p"$password" -e "SELECT $username_column FROM $database.$table_name;" 2>/dev/null)
 
