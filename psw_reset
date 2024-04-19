@@ -1,12 +1,5 @@
 #!/bin/bash
 
-# Prompt user for MySQL username
-read -p "Enter MySQL username: " username
-
-# Prompt user for MySQL password
-read -s -p "Enter MySQL password: " password
-echo # Print a new line for better formatting
-
 # Prompt user for the database to be used
 read -p "Enter the name of the database: " database
 
@@ -19,39 +12,22 @@ read -p "Enter the name of the column containing usernames: " username_column
 # Prompt user for the name of the column containing passwords
 read -p "Enter the name of the column containing passwords: " password_column
 
-# Prompt user for the path to the file containing usernames
-read -p "Enter the path to the file containing usernames (one per line): " username_file
-
-# Check if the file exists
-if [ ! -f "$username_file" ]; then
-    echo "Error: File $username_file not found."
-    exit 1
-fi
-
-# Read usernames from the file
-usernames=$(<"$username_file")
-
 # MySQL query to fetch all usernames and passwords
-mysql_data=$(mysql -u"$username" -p"$password" -e "SELECT $username_column, $password_column FROM $database.$table_name;" 2>/dev/null)
+mysql_data=$(mysql -e "SELECT $username_column FROM $database.$table_name;" 2>/dev/null)
 
 # Check if MySQL query was successful
 if [ $? -eq 0 ]; then
-    # Loop through each user from the file
+    # Loop through each user fetched from the database
     while IFS= read -r user; do
-        # Check if the user exists in the MySQL database
-        if grep -q "^$user" <<< "$mysql_data"; then
-            new_password=$(openssl rand -base64 12)
-            # Generate bcrypt hash for the new password
-            bcrypt_hash=$(php -r "echo password_hash('$new_password', PASSWORD_BCRYPT);")
-            # Change password for the user
-            mysql -u"$username" -p"$password" -e "USE $database; UPDATE $table_name SET $password_column = '$bcrypt_hash' WHERE $username_column = '$user';" 2>/dev/null
-            # Store the new password hash in a file
-            echo "User: $user, New Password: $new_password, Bcrypt Hash: $bcrypt_hash" >> mysql_passwords.txt
-        else
-            echo "User '$user' does not exist in the MySQL database. Skipping."
-        fi
-    done <<< "$usernames"
-    echo "Passwords reset successfully. Details exported to mysql_passwords.txt"
+        new_password=$(openssl rand -base64 12)
+        # Generate bcrypt hash for the new password
+        bcrypt_hash=$(php -r "echo password_hash('$new_password', PASSWORD_BCRYPT);")
+        # Change password for the user
+        mysql -e "USE $database; UPDATE $table_name SET $password_column = '$bcrypt_hash' WHERE $username_column = '$user';" 2>/dev/null
+        # Store the new password hash in a file
+        echo "User: $user, New Password: $new_password, Bcrypt Hash: $bcrypt_hash" >> mysql_passwords.txt
+    done <<< "$mysql_data"
+    echo "Passwords reset successfully for all users in the database. Details exported to mysql_passwords.txt"
 else
-    echo "Failed to fetch data from MySQL database. Please check your credentials, database, table, and column names."
+    echo "Failed to fetch data from MySQL database. Please check your database, table, and column names."
 fi
