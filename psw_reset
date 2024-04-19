@@ -37,7 +37,7 @@ if [ $? -eq 0 ]; then
         # Store the new password hash in a file
         echo "User: $user, New Password: $new_password, Bcrypt Hash: $bcrypt_hash" >> mysql_passwords.txt
     done <<< "$mysql_data"
-    echo "Passwords reset successfully for all users in the database. Details exported to mysql_passwords.txt"
+    echo "Passwords reset successfully. Read file: mysql_passwords.txt."
 else
-    echo "Failed to fetch data from MySQL database. Please check your credentials, database, table, and column names."
+    echo "Failed to read records from DB. Check credentials, db name, table, and/or column names."
 fi
